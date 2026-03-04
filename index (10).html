@@ -3696,7 +3696,12 @@
             if (deletedOp) {
             }
             records = records.filter(r => r.id !== id); // Now, remove it from the array
-            saveToStorage();
+            if (typeof saveToStorageWithSync === 'function') {
+                saveToStorageWithSync();
+            } else {
+                saveToStorage();
+                if (window.saveToCloud) window.saveToCloud();
+            }
             render();
             beep(300, 0.05, 0.06);
         }
@@ -3849,7 +3854,10 @@
             records.forEach(op => {
                 if (searchTerm) {
                     const totalAmt = Number(op.top || 0) + Number(op.bottom || 0);
-                    const text = `${op.category} ${op.notes || ''} ${op.top || ''} ${op.bottom || ''} ${totalAmt} ${op.user || ''}`.toLowerCase();
+                    // filter out admin from search text
+                    const safeUser = (op.user || '').toLowerCase();
+                    const filteredUser = (safeUser === 'admin' || safeUser === 'المدير' || safeUser === 'ادمن') ? '' : op.user;
+                    const text = `${op.category} ${op.notes || ''} ${op.top || ''} ${op.bottom || ''} ${totalAmt} ${filteredUser}`.toLowerCase();
                     if (!text.includes(searchTerm)) return;
                 }
                 const isSales = op.category === 'مبيعات';
@@ -3864,7 +3872,7 @@
                     isSales: isSales,
                     notes: op.notes,
                     device: op.device, // Pass device type to view data
-                    user: op.user // Pass user name
+                    user: (['admin', 'المدير', 'ادمن'].includes((op.user || '').toLowerCase())) ? '' : op.user // Pass user name without admin text
                 });
             });
 
@@ -3932,7 +3940,7 @@
                         <td>${formatNum(item.bottom)}</td>
                         <td>${formatNum(item.total)}</td>
                         <td style="max-width:150px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${escapeHtml(item.notes)}">${escapeHtml(item.notes || '-')}</td>
-                        <td style="text-align:center; font-size:12px; color:var(--muted);">${escapeHtml(item.user || 'غير محدد')}</td>
+                        <td style="text-align:center; font-size:12px; color:var(--muted);">${item.user ? escapeHtml(item.user) : '-'}</td>
                         <td style="display:flex; gap:4px; justify-content:center;">${actionsHtml}</td>
                     `;
                     aggTbody.appendChild(row);
@@ -5232,6 +5240,32 @@
             updateCalcDisplay();
         });
 
+        /* ---------- Screen Orientation ---------- */
+        async function toggleScreenOrientation() {
+            try {
+                // Request fullscreen first, as many browsers require it for orientation lock
+                if (!document.fullscreenElement) {
+                    await document.documentElement.requestFullscreen();
+                }
+
+                if (screen.orientation) {
+                    // Check current orientation and toggle
+                    if (screen.orientation.type.startsWith('portrait')) {
+                        await screen.orientation.lock('landscape');
+                    } else {
+                        await screen.orientation.lock('portrait');
+                    }
+                    showToast('تم تغيير اتجاه الشاشة بنجاح', 'success');
+                    beep(800, 0.05, 0.05);
+                } else {
+                    showToast('متصفحك لا يدعم هذه الخاصية', 'error');
+                }
+            } catch (err) {
+                console.error(err);
+                showToast('تعذر تغيير الاتجاه (قد تحتاج للتثبيت أو الشاشة الكاملة)', 'warning');
+            }
+        }
+
         /* ---------- Theme ---------- */
         function toggleTheme() {
             document.body.classList.toggle('dark');
@@ -6489,7 +6523,15 @@
                     <div style="padding: 50px 20px 20px 20px;">
                         <h3 style="margin: 0; font-size: 22px; color:#fff;">${localStorage.getItem('acc_user_name') || 'المستخدم'}</h3>
                         <p style="color: var(--muted); font-size: 14px; margin-top:5px;">${localStorage.getItem('acc_user_phone') || 'لا يوجد رقم هاتف'}</p>
-                        <p style="color: var(--gold3); font-size: 13px; margin-top:5px;">🔑 السريال الخاص بك (المفتاح السري): <br><span style="user-select:all; color: var(--success); font-weight: bold; font-size: 16px; background: rgba(0,0,0,0.3); padding: 5px 10px; border-radius: 6px; display: inline-block; margin-top: 5px; letter-spacing: 2px;">${localStorage.getItem('app_auth_serial') || 'أنت تعمل كـ زائر'}</span></p>
+                        <div style="color: var(--gold3); font-size: 13px; margin-top:10px;">
+                            🔑 السريال الخاص بك (المفتاح السري): <br>
+                            <div style="display: flex; align-items: center; gap: 8px; margin-top: 5px;">
+                                <span id="serialTextForCopy" style="user-select:all; color: var(--success); font-weight: bold; font-size: 16px; background: rgba(0,0,0,0.3); padding: 5px 10px; border-radius: 6px; display: inline-block; letter-spacing: 2px;">${localStorage.getItem('app_auth_serial') || 'أنت تعمل كـ زائر'}</span>
+                                <button onclick="navigator.clipboard.writeText(document.getElementById('serialTextForCopy').innerText); showToast('تم نسخ السريال', 'success')" style="background: var(--gold2); border: none; padding: 6px 10px; border-radius: 6px; cursor: pointer; color: #fff; font-size: 12px; display: flex; align-items: center; gap: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">
+                                    <span style="font-size: 14px;">📋</span> نسخ
+                                </button>
+                            </div>
+                        </div>
                         
                         <div style="margin-top: 25px; display: grid; gap: 15px;">
                              <div class="field">
@@ -6527,7 +6569,10 @@
                         <label style="display:block; margin-bottom:8px;">إضافة مستخدم جديد</label>
                         <div style="display:flex; gap:10px; flex-wrap:wrap;">
                             <input type="text" id="newUserName" placeholder="اسم المستخدم" class="custom-input" style="flex:1; min-width:120px;">
-                            <input type="password" id="newUserPass" placeholder="كلمة المرور" class="custom-input" style="flex:1; min-width:120px;">
+                            <div style="position: relative; flex:1; min-width:120px;">
+                                <input type="password" id="newUserPass" placeholder="كلمة المرور" class="custom-input" style="width: 100%; box-sizing: border-box; padding-left: 35px;">
+                                <span id="eyeUser" onclick="togglePasswordVisibility('newUserPass', 'eyeUser')" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); cursor: pointer; color: #aaa; font-size: 16px;">👁️</span>
+                            </div>
                             <button class="btn green" onclick="addNewUser()">إضافة</button>
                         </div>
                     </div>
@@ -6639,6 +6684,15 @@
                         <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJsdWNpZGUgbHVjaWRlLW1vb24iPjxwYXRoIGQ9Ik0xMiAzYTYgNiAwIDAgMCA5IDkgOSA5IDAgMSAxLTktOUwzIDEyeTAtOSAwIDAgMCA5LTlaIi8+PC9zdmc+" class="icon"> التبديل بين الوضع الفاتح / المظلم
                     </button>
                 </div>
+
+                <div class="settings-card" style="margin-top:16px;">
+                    <h4>🔄 اتجاه الشاشة (أفقي / رأسي)</h4>
+                    <button class="btn ghost" onclick="toggleScreenOrientation()" style="width:100%; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon" style="color: var(--gold2);"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg> 
+                        التبديل بين الوضع الأفقي والرأسي
+                    </button>
+                    <p style="font-size: 11px; color: var(--muted); text-align: center; margin-top: 8px;">اضغط للتبديل. (قد يتطلب تفعيل وضع الشاشة الكاملة)</p>
+                </div>
                 
                 <div class="settings-card">
                     <h4>🔤 الخطوط</h4>
@@ -6687,7 +6741,10 @@
                         <div class="field">
                             <label>تغيير رمز القفل (PIN)</label>
                             <div style="display: flex; gap: 8px;">
-                                <input type="password" id="newPinInput" placeholder="أدخل الرمز الجديد" style="padding: 10px;">
+                                <div style="position: relative; flex: 1;">
+                                    <input type="password" id="newPinInput" placeholder="أدخل الرمز الجديد" style="padding: 10px; width: 100%; box-sizing: border-box; padding-left: 35px;">
+                                    <span id="eyePin" onclick="togglePasswordVisibility('newPinInput', 'eyePin')" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); cursor: pointer; color: #aaa; font-size: 16px;">👁️</span>
+                                </div>
                                 <button class="btn" onclick="updatePin()">تحديث</button>
                             </div>
                         </div>
@@ -6758,63 +6815,89 @@
 
             <!-- About Tab -->
             <div id="tab-about" class="tab-content">
-                <div class="settings-card" style="text-align: center; padding: 25px 20px; background: linear-gradient(135deg, rgba(14, 165, 233, 0.1) 0%, rgba(168, 85, 247, 0.1) 100%); position: relative; overflow: hidden;">
-                    <div style="font-size: 50px; margin-bottom: 20px;">💎</div>
-                    <h2 style="margin: 0 0 10px; font-size: 24px; color: var(--gold2);">تطبيق المحاسبة اليومي — فاخر</h2>
-                    <p style="color: var(--muted); margin-bottom: 20px;">الإصدار 2.1.0 (PRO)</p>
+                <div class="settings-card" style="padding: 0; background: transparent; border: none; box-shadow: none;">
+                    
+                    <!-- Hero Section -->
+                    <div style="position: relative; background: linear-gradient(135deg, rgba(15,23,42,1) 0%, rgba(30,41,59,1) 100%); border-radius: 20px; overflow: hidden; text-align: center; padding: 40px 20px; margin-bottom: 20px; border: 1px solid rgba(212, 175, 55, 0.3); box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+                        <!-- Abstract Background Decoration -->
+                        <div style="position: absolute; top: -50px; left: -50px; width: 150px; height: 150px; background: radial-gradient(circle, rgba(212,175,55,0.2) 0%, transparent 70%); border-radius: 50%;"></div>
+                        <div style="position: absolute; bottom: -50px; right: -50px; width: 200px; height: 200px; background: radial-gradient(circle, rgba(14,165,233,0.15) 0%, transparent 70%); border-radius: 50%;"></div>
+                        
+                        <div style="position: relative; z-index: 1;">
+                            <div style="display: inline-flex; justify-content: center; align-items: center; width: 80px; height: 80px; background: linear-gradient(135deg, #d4af37, #f59e0b); border-radius: 20px; box-shadow: 0 8px 20px rgba(212, 175, 55, 0.4); margin-bottom: 20px; transform: rotate(-10deg);">
+                                <span style="font-size: 40px; transform: rotate(10deg); display: block;">💎</span>
+                            </div>
+                            <h2 style="margin: 0 0 5px; font-size: 26px; font-weight: 800; background: linear-gradient(to right, #fff, #d4af37); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: 0.5px;">النظام المالي الموحد</h2>
+                            <p style="color: var(--gold3); font-size: 14px; margin: 0 0 15px; font-weight: 600; letter-spacing: 2px;">V I P  E D I T I O N</p>
+                            
+                            <div style="display: inline-block; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); padding: 5px 15px; border-radius: 30px; font-size: 12px; color: #aaa; backdrop-filter: blur(5px);">
+                                الإصدار <span style="color: #fff; font-weight: bold;">3.0.0 (Gold PRO)</span>
+                            </div>
+                        </div>
+                    </div>
 
-                    <!-- NEW FEATURES SECTION -->
-                    <div style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 12px; padding: 15px; margin-bottom: 25px; text-align: right;">
-                        <h4 style="color: #f59e0b; margin: 0 0 10px 0; font-size: 16px; border-bottom: 1px solid rgba(245, 158, 11, 0.2); padding-bottom: 8px;">🔥 جديد التحديث الذهبي الأسود (V 3.0)</h4>
-                        <ul style="list-style: none; padding: 0; margin: 0; font-size: 13px; line-height: 1.8;">
-                            <li style="margin-bottom: 6px;">📢 <strong>بحث متقدم وشامل:</strong> تم تحسين البحث الرئيسي وإضافة <strong>بحث ذكي فوري</strong> في جدول العمليات بالفلوس، أو الحرف، أو الكلمة.</li>
-                            <li style="margin-bottom: 6px;">🎨 <strong>الذهبي الأسود (وضوح فائق):</strong> تصميم ملكي بريميوم، مريح جداً في الوضع الفاتح والداكن بدقة 100%.</li>
-                            <li style="margin-bottom: 6px;">🔒 <strong>تشفير الكود وحماية قوية:</strong> مُعرف جهاز فريد لكل شخص، واستحالة عرض مصدر الكود أو سرقة الشفرة.</li>
-                            <li style="margin-bottom: 6px;">🖨️ <strong>إيصال طباعة احترافي مُجمع:</strong> نظام طباعة يجمع لك إجمالي كل فئة (فوق / تحت) بدل سرد العمليات.</li>
-                            <li style="margin-bottom: 6px;">🤳 <strong>QR Code حقيقي ذكي:</strong> يقوم بتوليد باركود لكل يوم ويسهل المشاركة عبر واتساب وتليجرام برابط فوري.</li>
+                    <!-- Highlight Features Box -->
+                    <div style="background: linear-gradient(180deg, rgba(212, 175, 55, 0.1) 0%, rgba(0,0,0,0.2) 100%); border: 1px solid rgba(212, 175, 55, 0.2); border-radius: 16px; padding: 25px 20px; margin-bottom: 20px; text-align: right;">
+                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px; border-bottom: 1px solid rgba(212, 175, 55, 0.2); padding-bottom: 10px;">
+                            <span style="font-size: 24px;">🚀</span>
+                            <h4 style="margin: 0; color: #fff; font-size: 18px;">ما الجديد في هذه النسخة؟</h4>
+                        </div>
+                        <ul style="list-style: none; padding: 0; margin: 0; font-size: 13.5px; line-height: 2; color: #cfcfcf;">
+                            <li style="display: flex; gap: 10px; align-items: flex-start; margin-bottom: 8px;">
+                                <span style="color: var(--gold2); font-size: 16px;">✓</span>
+                                <span><strong style="color: #fff;">الترابط السحابي المتعدد:</strong> إمكانية ربط أكثر من جهاز عبر الكود السري المشترك بضغطة زر.</span>
+                            </li>
+                            <li style="display: flex; gap: 10px; align-items: flex-start; margin-bottom: 8px;">
+                                <span style="color: var(--gold2); font-size: 16px;">✓</span>
+                                <span><strong style="color: #fff;">بنية بيانات حديثة:</strong> مزامنة فورية ومقاومة فقدان البيانات مع دعم الوضع غير المتصل بالإنترنت.</span>
+                            </li>
+                            <li style="display: flex; gap: 10px; align-items: flex-start; margin-bottom: 8px;">
+                                <span style="color: var(--gold2); font-size: 16px;">✓</span>
+                                <span><strong style="color: #fff;">إدارة صلاحيات فائقة:</strong> حماية قوية للحسابات وسجلات عمليات ذكية لا تظهر بصمات المدير.</span>
+                            </li>
                         </ul>
                     </div>
 
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; text-align: right; direction: rtl; margin-bottom: 25px;">
-                        <div style="background: rgba(255,255,255,0.05); padding: 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1);">
-                            <strong style="color: var(--gold2); font-size: 14px;">📈 إدارة مالية ذكية</strong>
-                            <p style="font-size: 11px; color: #aaa; margin-top: 4px;">تسجيل دقيق وحساب تلقائي للصافي والفرق اليومي.</p>
+                    <!-- Core Features Grid -->
+                    <h4 style="color: var(--muted); margin: 0 0 15px 5px; font-size: 14px; text-align: right;">ميزات النظام الذهبية</h4>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; text-align: right; direction: rtl; margin-bottom: 30px;">
+                        
+                        <div style="background: rgba(30,41,59,0.6); padding: 15px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.05); transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+                            <div style="font-size: 24px; margin-bottom: 8px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));">🔒</div>
+                            <strong style="color: #fff; font-size: 13px; display: block; margin-bottom: 4px;">تشفير قوي</strong>
+                            <p style="font-size: 11px; color: #888; margin: 0; line-height: 1.5;">أمان عالي عبر معرف فريد وكود سري لا يُخترق.</p>
                         </div>
-                        <div style="background: rgba(255,255,255,0.05); padding: 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1);">
-                            <strong style="color: var(--gold2); font-size: 14px;">📱 نظام QR Code</strong>
-                            <p style="font-size: 11px; color: #aaa; margin-top: 4px;">توليد باركود يحتوي على تفاصيل كاملة للعمليات.</p>
+                        
+                        <div style="background: rgba(30,41,59,0.6); padding: 15px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.05); transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+                            <div style="font-size: 24px; margin-bottom: 8px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));">📱</div>
+                            <strong style="color: #fff; font-size: 13px; display: block; margin-bottom: 4px;">نظام PWA</strong>
+                            <p style="font-size: 11px; color: #888; margin: 0; line-height: 1.5;">تثبيت كتطبيق مستقل يعمل على كود الشاشات والأنظمة.</p>
                         </div>
-                        <div style="background: rgba(255,255,255,0.05); padding: 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1);">
-                            <strong style="color: var(--gold2); font-size: 14px;">🔢 ترقيم تلقائي</strong>
-                            <p style="font-size: 11px; color: #aaa; margin-top: 4px;">نظام ترقيم تقارير يتزايد آلياً لتنظيم سجلاتك.</p>
+
+                        <div style="background: rgba(30,41,59,0.6); padding: 15px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.05); transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+                            <div style="font-size: 24px; margin-bottom: 8px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));">⚡</div>
+                            <strong style="color: #fff; font-size: 13px; display: block; margin-bottom: 4px;">أداء صاروخي</strong>
+                            <p style="font-size: 11px; color: #888; margin: 0; line-height: 1.5;">تحميل فوري وتفاعل ذكي بدون تأخير أثناء العمل.</p>
                         </div>
-                        <div style="background: rgba(255,255,255,0.05); padding: 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1);">
-                            <strong style="color: var(--gold2); font-size: 14px;">🔍 بحث متقدم</strong>
-                            <p style="font-size: 11px; color: #aaa; margin-top: 4px;">فلترة ذكية بالتاريخ والبنود للوصول السريع.</p>
-                        </div>
-                        <div style="background: rgba(255,255,255,0.05); padding: 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1);">
-                            <strong style="color: var(--gold2); font-size: 14px;">🎙️ إدخال صوتي</strong>
-                            <p style="font-size: 11px; color: #aaa; margin-top: 4px;">إضافة العمليات عبر الأوامر الصوتية بسرعة وسهولة.</p>
-                        </div>
-                        <div style="background: rgba(255,255,255,0.05); padding: 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1);">
-                            <strong style="color: var(--gold2); font-size: 14px;">☁️ مزامنة سحابية</strong>
-                            <p style="font-size: 11px; color: #aaa; margin-top: 4px;">ربط بياناتك بين جميع أجهزتك لحظة بلحظة.</p>
-                        </div>
-                        <div style="background: rgba(255,255,255,0.05); padding: 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1);">
-                            <strong style="color: var(--gold2); font-size: 14px;">💾 نُسخ احتياطية</strong>
-                            <p style="font-size: 11px; color: #aaa; margin-top: 4px;">حماية كاملة لبياناتك عبر النسخ اليدوي أو السحابي.</p>
-                        </div>
-                        <div style="background: rgba(255,255,255,0.05); padding: 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1);">
-                            <strong style="color: var(--gold2); font-size: 14px;">🎨 واجهات مودرن</strong>
-                            <p style="font-size: 11px; color: #aaa; margin-top: 4px;">تصميم متجاوب وأنيق يدعم الوضع الليلي والنهاري.</p>
+
+                        <div style="background: rgba(30,41,59,0.6); padding: 15px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.05); transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+                            <div style="font-size: 24px; margin-bottom: 8px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));">📊</div>
+                            <strong style="color: #fff; font-size: 13px; display: block; margin-bottom: 4px;">تقارير تفصيلية</strong>
+                            <p style="font-size: 11px; color: #888; margin: 0; line-height: 1.5;">إنشاء ومشاركة الإيصالات، الطباعة، ورموز QR بلمحة.</p>
                         </div>
                     </div>
 
-                    <div style="padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1);">
-                        <button class="btn" onclick="aiTutorial()" style="width: 100%; margin-bottom: 15px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);">📖 فتح دليل الاستخدام التفاعلي</button>
-                        <p style="font-size: 12px; color: var(--muted); margin-bottom: 5px;">تطوير وتصميم</p>
-                        <strong style="font-size: 16px; color: #fff;">عمرو إيهاب — المطور الذكي</strong>
+                    <!-- Developer Signature -->
+                    <div style="background: rgba(0,0,0,0.2); padding: 20px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                        <div style="text-align: right;">
+                            <p style="font-size: 11px; color: var(--muted); margin: 0 0 4px; text-transform: uppercase; letter-spacing: 1px;">التطوير والتصميم</p>
+                            <strong style="font-size: 17px; color: var(--gold2); display: block;">المهندس. عمرو إيهاب 👨‍💻</strong>
+                        </div>
+                        <button class="btn ghost" onclick="aiTutorial()" style="padding: 10px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; gap: 8px; font-size: 12px; background: rgba(255,255,255,0.03);">
+                            <span>📖 دليل النظام</span>
+                        </button>
                     </div>
+                    
                 </div>
             </div>
 
@@ -11118,6 +11201,19 @@ ${report.currentData.operations.map(op => `• ${op.category}: فوق ${formatNu
             return user.pass === pass;
         }
 
+        window.togglePasswordVisibility = function(inputId, iconId) {
+            const input = document.getElementById(inputId);
+            const icon = document.getElementById(iconId);
+            if (!input) return;
+            if (input.type === 'password') {
+                input.type = 'text';
+                if (icon) icon.textContent = '🙈';
+            } else {
+                input.type = 'password';
+                if (icon) icon.textContent = '👁️';
+            }
+        };
+
         window.showLockScreen = function () {
             if (document.querySelector('.lock-screen-overlay')) return;
 
@@ -11156,7 +11252,10 @@ ${report.currentData.operations.map(op => `• ${op.category}: فوق ${formatNu
                 ${currentUsers.map((u, i) => `<option value="${i}">${u.name} ${u.role === 'admin' ? '(مدير)' : ''}</option>`).join('')}
             </select>
             
-            <input type="password" id="lockPassInput" placeholder="كلمة المرور" style="width: 100%; margin-bottom: 20px; padding: 12px; text-align: center; background: rgba(0,0,0,0.2); color: #fff; border: 1px solid rgba(255,255,255,0.1); border-radius: 10px;">
+            <div style="position: relative; width: 100%; margin-bottom: 20px;">
+                <input type="password" id="lockPassInput" placeholder="كلمة المرور" style="width: 100%; padding: 12px; text-align: center; background: rgba(0,0,0,0.2); color: #fff; border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; box-sizing: border-box; padding-left: 40px;">
+                <span id="eyeLock" onclick="togglePasswordVisibility('lockPassInput', 'eyeLock')" style="position: absolute; left: 15px; top: 50%; transform: translateY(-50%); cursor: pointer; color: var(--gold2); font-size: 20px;">👁️</span>
+            </div>
             
             <button class="btn green glowing" onclick="attemptLogin()" style="width: 100%; padding: 15px;">دخول</button>
             <p id="lockMsg" style="color: #ef4444; margin-top: 15px; font-size: 13px; min-height: 20px;"></p>
@@ -11192,11 +11291,9 @@ ${report.currentData.operations.map(op => `• ${op.category}: فوق ${formatNu
 
         window.lockAppNow = window.showLockScreen;
 
-        // Auto-Lock Check on Startup
-        if (localStorage.getItem('acc_auto_lock') === 'true') {
-            if (document.readyState !== 'loading') showLockScreen();
-            else document.addEventListener('DOMContentLoaded', showLockScreen);
-        }
+        // Always Lock on Startup / Refresh
+        if (document.readyState !== 'loading') showLockScreen();
+        else document.addEventListener('DOMContentLoaded', showLockScreen);
 
         // Data Load Fix
         if (document.readyState !== 'loading') {
@@ -11937,9 +12034,51 @@ ${report.currentData.operations.map(op => `• ${op.category}: فوق ${formatNu
                         }, { merge: true }).catch(e => console.error("Cloud registration init error:", e));
                     }
 
-                    alert('🎉 تم إنشاء حسابك بنجاح!\n\nالكود السري الخاص بك هو:\n\n' + newSerial + '\n\n⚠️ يرجى تصوير الشاشة أو حفظ هذا الكود لأنه الطريقة الوحيدة لاسترجاع بياناتك.');
+                    // Remove the old simple alert and show a nice modal for screenshotting
+                    const modalHtml = `
+                    <div id="serial-screenshot-modal" style="position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.8); z-index:9999999; display:flex; justify-content:center; align-items:center;">
+                        <div id="serial-card" style="background:#111; padding:30px; border-radius:15px; text-align:center; border:2px solid var(--gold2); max-width:90%;">
+                            <h2 style="color:var(--gold2); margin-top:0;">🎉 تم إنشاء الحساب بنجاح</h2>
+                            <p style="color:#fff; font-size:14px;">هذا هو الكود السري الخاص بك. يرجى حفظه جيدا لاسترجاع بياناتك.</p>
+                            <div style="background:var(--glass); padding:20px; font-size:24px; font-weight:bold; letter-spacing:2px; color:var(--success); border-radius:10px; margin:20px 0;">
+                                ${newSerial}
+                            </div>
+                            <div style="display:flex; gap:10px; justify-content:center; margin-top:20px;">
+                                <button class="btn green" id="btn-save-serial-img" style="flex:1;">📸 حفظ الصورة</button>
+                                <button class="btn" id="btn-close-serial-modal" style="flex:1;">دخول للتطبيق</button>
+                            </div>
+                        </div>
+                    </div>`;
+                    
+                    document.body.insertAdjacentHTML('beforeend', modalHtml);
 
-                    loginWithSerial(newSerial);
+                    document.getElementById('btn-close-serial-modal').addEventListener('click', () => {
+                        document.getElementById('serial-screenshot-modal').remove();
+                        loginWithSerial(newSerial);
+                    });
+
+                    document.getElementById('btn-save-serial-img').addEventListener('click', () => {
+                        const serialCard = document.getElementById('serial-card');
+                        const origBg = serialCard.style.background;
+                        serialCard.style.background = '#111'; // make sure it's dark for screenshot
+                        
+                        // Hide buttons for screenshot
+                        const btns = serialCard.querySelector('div[style*="display:flex;"]');
+                        if (btns) btns.style.display = 'none';
+
+                        html2canvas(serialCard, { backgroundColor: '#111' }).then(canvas => {
+                            const link = document.createElement('a');
+                            link.download = 'accounting-secret-code.png';
+                            link.href = canvas.toDataURL();
+                            link.click();
+                            alert('تم حفظ صورة الكود السري في جهازك! يرجى التأكد من الاحتفاظ بها في مكان آمن.');
+                            
+                            if (btns) btns.style.display = 'flex';
+                        }).catch(err => {
+                            alert('حدث خطأ أثناء حفظ الصورة.');
+                            if (btns) btns.style.display = 'flex';
+                        });
+                    });
                 });
 
                 document.getElementById('login-serial-btn').addEventListener('click', () => {
@@ -11970,7 +12109,11 @@ ${report.currentData.operations.map(op => `• ${op.category}: فوق ${formatNu
                         if (offlineSerials.includes(serial)) {
                             loginWithSerial(serial);
                         } else {
-                            alert("❌ الكود غير صحيح أو لم يسبق إنشاؤه على هذا الجهاز! لإنشاء حساب جديد، انقر على 'إنشاء كود سريالي'.");
+                            if (confirm("⚠️ هذا السيريال غير مسجل على جهازك الحالي.\n\nهل تريد تسجيل الدخول باستخدام هذا الكود لربط جهازك ومشاركة وتزامن البيانات مع أجهزة أخرى تستخدم نفس هذا السيريال؟")) {
+                                offlineSerials.push(serial);
+                                localStorage.setItem('acc_registered_serials', JSON.stringify(offlineSerials));
+                                loginWithSerial(serial);
+                            }
                         }
                     }
 
@@ -11987,7 +12130,19 @@ ${report.currentData.operations.map(op => `• ${op.category}: فوق ${formatNu
                             if (doc.exists) {
                                 loginWithSerial(serial);
                             } else {
-                                alert("❌ خطأ قاطع: هذا الكود غير موجود أو لم يتم إنشاؤه مسبقاً! يرجى التأكد من الرقم أو الضغط على (إنشاء كود سريالي) لعمل حساب جديد.");
+                                if (confirm("⚠️ هذا السيريال غير مسجل على السيرفر بعد.\n\nهل أنت متأكد من دقة هذا السيريال وأنك تريد ربطه ومشاركته عبر الأجهزة لإنشاء شبكة مشتركة؟")) {
+                                    db.collection("users").doc(serial).set({
+                                        registered: true,
+                                        createdAt: new Date().toISOString()
+                                    }, { merge: true }).catch(e => console.error(e));
+                                    
+                                    const offlineSerials = JSON.parse(localStorage.getItem('acc_registered_serials') || '[]');
+                                    if (!offlineSerials.includes(serial)) {
+                                        offlineSerials.push(serial);
+                                        localStorage.setItem('acc_registered_serials', JSON.stringify(offlineSerials));
+                                    }
+                                    loginWithSerial(serial);
+                                }
                             }
                         }).catch(e => {
                             // فشل استخراج البيانات (قد يكون النت ضعيفاً أو حساباً مقفلاً)
@@ -12088,14 +12243,15 @@ ${report.currentData.operations.map(op => `• ${op.category}: فوق ${formatNu
                                 return;
                             }
 
-                            // 2. إذا كان السيرفر لديه بيانات أقل (قد يكون خطأ مزامنة)، نعتمد الأكبر (الأكثر بيانات)
+                            // 2. إذا كان السيرفر لديه بيانات أقل، فهذا يمكن أن يكون بسبب حذف متعمد!
+                            // قمنا بتعطيل جزء رفض البيانات إذا كان السيرفر أقل لنسمح بعمليات الحذف بالتزامن
+                            /*
                             if (cloudCount < localCount) {
-                                console.warn(`⚠️ تجاهل تحديث السيرفر: المحلي (${localCount}) أكثر من السيرفر (${cloudCount}).`);
-                                // يمكن إضافة منطق دمج هنا مستقبلاً، لكن حالياً الأمان في العدد الأكبر
-                                // سنقوم برفع المحلي لتحديث السيرفر
+                                console.warn(\`⚠️ تجاهل تحديث السيرفر: المحلي (\${localCount}) أكثر من السيرفر (\${cloudCount}).\`);
                                 if (window.saveToCloud) window.saveToCloud();
                                 return;
                             }
+                            */
 
                             // 3. التحديث الطبيعي (فقط إذا كان هناك اختلاف والسيرفر موثوق)
                             if (localRecordsStr !== cloudRecordsStr) {
