@@ -2760,7 +2760,7 @@
                             </div>
 
                             <div style="margin-bottom: 12px;">
-                                <input type="text" id="smartTableSearch"
+                                <input type="text" id="smartTableSearch" autocomplete="off"
                                     placeholder="🔍 بحث ذكي في الجدول لتصفية العمليات (مبلغ، كلمة، حرف، ملاحظة)..."
                                     style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid rgba(0,0,0,0.1); background: rgba(255,255,255,0.7); box-shadow: inset 0 1px 3px rgba(0,0,0,0.1); font-size: 15px; color: #1a1a1a;"
                                     oninput="render()">
@@ -6489,7 +6489,7 @@
                     <div style="padding: 50px 20px 20px 20px;">
                         <h3 style="margin: 0; font-size: 22px; color:#fff;">${localStorage.getItem('acc_user_name') || 'المستخدم'}</h3>
                         <p style="color: var(--muted); font-size: 14px; margin-top:5px;">${localStorage.getItem('acc_user_phone') || 'لا يوجد رقم هاتف'}</p>
-                        <p style="color: var(--gold3); font-size: 11px; margin-top:5px;">مُعرف فريد لجهازك: <span style="user-select:all; color: var(--gold2); font-weight: bold; background: rgba(0,0,0,0.2); padding: 2px 6px; border-radius: 4px;">${localStorage.getItem('acc_device_id') || (localStorage.setItem('acc_device_id', 'ID-' + Math.random().toString(36).substr(2, 9).toUpperCase()), localStorage.getItem('acc_device_id'))}</span></p>
+                        <p style="color: var(--gold3); font-size: 13px; margin-top:5px;">🔑 السريال الخاص بك (المفتاح السري): <br><span style="user-select:all; color: var(--success); font-weight: bold; font-size: 16px; background: rgba(0,0,0,0.3); padding: 5px 10px; border-radius: 6px; display: inline-block; margin-top: 5px; letter-spacing: 2px;">${localStorage.getItem('app_auth_serial') || 'أنت تعمل كـ زائر'}</span></p>
                         
                         <div style="margin-top: 25px; display: grid; gap: 15px;">
                              <div class="field">
@@ -10345,7 +10345,7 @@ ${report.currentData.operations.map(op => `• ${op.category}: فوق ${formatNu
                 <button class="btn ghost" style="padding:8px; color: var(--danger);" onclick="document.body.removeChild(this.closest('.modal-overlay'))"><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJsdWNpZGUgbHVjaWRlLXgiPjxsaW5lIHgxPSIxOCIgeDI9IjYiIHkxPSI2IiB5Mj0iMTgiLz48bGluZSB4MT0iNiIgeDI9IjE4IiB5MT0iNiIgeTI9IjE4Ii8+PC9zdmc+" class="icon" style="margin:0;"></button>
             </div>
             <div style="display:flex; gap:8px; margin-bottom:16px;">
-                <input type="text" id="searchInput" placeholder="ابحث بصيغة حرة: فئة, ملاحظة, مبلغ..." style="flex-grow:1; padding: 12px; font-size: 15px; border: 1px solid rgba(0,0,0,0.1); color: #111;">
+                <input type="text" id="searchInput" autocomplete="off" placeholder="ابحث بصيغة حرة: فئة, ملاحظة, مبلغ..." style="flex-grow:1; padding: 12px; font-size: 15px; border: 1px solid rgba(0,0,0,0.1); color: #111;">
                 <select id="searchCategory" style="width: auto; flex: 1; padding: 12px; border-radius: 8px; border: 1px solid rgba(0,0,0,0.1); background: rgba(255,255,255,0.9); color: #000; box-sizing: border-box; transition: all .2s ease; font-size:15px; box-shadow: inset 0 1px 3px rgba(0,0,0,0.08);">
                     ${categoryOptions}
                 </select>
@@ -11848,11 +11848,12 @@ ${report.currentData.operations.map(op => `• ${op.category}: فوق ${formatNu
     <!-- Firebase SDK (Compat - Works with file://) -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
 
     <script>
         // 1. إعدادات المشروع (Config)
         const firebaseConfig = {
-            apiKey: "AIzaSyAajiGNjaZLq60BWMXuimDsAV_cpG4_LTs",
+            apiKey: "YOUR_API_KEY_HIDDEN",
             authDomain: "ehab-accounting.firebaseapp.com",
             projectId: "ehab-accounting",
             storageBucket: "ehab-accounting.firebasestorage.app",
@@ -11881,125 +11882,295 @@ ${report.currentData.operations.map(op => `• ${op.category}: فوق ${formatNu
             // تحديد نوع الجهاز (للميتاداتا)
             const deviceType = (typeof detectDeviceType === 'function') ? detectDeviceType() : 'Unknown';
 
-            // 3. دالة المزامنة اللحظية (المراقب)
-            // نستمع للوثيقة dailyData التي تحتوي على كل شيء مع تفعيل Metadata
-            db.collection("accounting").doc("dailyData").onSnapshot({ includeMetadataChanges: true }, (doc) => {
+            // 3. دالة المزامنة برقم السيريال (Serial Code Auth)
 
-                // --- درع حماية البيانات المحلية ---
-                // إذا كان التحديث القادم من السيرفر "غير مؤكد" (HasPendingWrites)
-                // فهذا يعني أنه مجرد صدى لتعديلاتنا المحلية التي لم ترفع بعد.
-                // نتجاهل هذا التحديث لنمنع إعادة رسم الواجهة ببيانات قديمة أو ناقصة.
-                if (doc.metadata.hasPendingWrites) {
-                    console.log("⏳ Local mutation pending... skipping snapshot Update to avoid flicker.");
-                    return;
-                }
+            // --- بناء واجهة السيريال الديناميكية ---
+            if (!document.getElementById('auth-overlay')) {
+                const overlayHTML = `
+                <div id="auth-overlay" style="position:fixed; top:0; left:0; width:100%; height:100%; background:var(--neu-bg, #1e293b); z-index:999999; display:flex; flex-direction:column; justify-content:center; align-items:center; color:var(--neu-text, #e2e8f0); text-align:center;">
+                    <div style="background:var(--card, rgba(30,41,59,0.95)); padding:30px; border-radius:16px; width:90%; max-width:400px; box-shadow:0 10px 30px rgba(0,0,0,0.5); border:1px solid rgba(255,255,255,0.1);">
+                        <h2 style="margin-top:0; color:var(--gold2, #d4af37); font-size:24px;">تسجيل الدخول / إنشاء حساب 🔐</h2>
+                        <p style="margin-bottom:20px; color:var(--muted, #bfc7d2); font-size:14px;">للحفاظ على بياناتك وفصلها عن الباقيين بطريقة آمنة وسهلة.</p>
+                        
+                        <div id="new-user-section" style="margin-bottom: 20px; text-align: right; border: 1px solid rgba(255,255,255,0.1); padding: 15px; border-radius: 8px;">
+                            <h4 style="margin:0 0 10px 0; color:var(--gold2);">✨ مستخدم جديد</h4>
+                            <input type="text" id="new-user-name" placeholder="الاسم (اختياري)" style="width:100%; padding:10px; margin-bottom:10px; border-radius:8px; border:none;">
+                            <input type="tel" id="new-user-phone" placeholder="رقم الهاتف (اختياري)" style="width:100%; padding:10px; margin-bottom:10px; border-radius:8px; border:none;">
+                            <button id="generate-serial-btn" class="btn glowing" style="width:100%; font-size:14px; padding:10px;">إنشاء كود سريالي خاص بي</button>
+                        </div>
+                        
+                        <div id="existing-user-section" style="text-align: right; border: 1px solid rgba(255,255,255,0.1); padding: 15px; border-radius: 8px;">
+                            <h4 style="margin:0 0 10px 0; color:var(--success);">📥 لدي كود سريال بالفعل</h4>
+                            <input type="text" id="existing-serial" placeholder="أدخل رقم السريال الخاص بك هنا..." style="width:100%; padding:10px; margin-bottom:10px; border-radius:8px; border:none; text-transform: uppercase;">
+                            <button id="login-serial-btn" class="btn green" style="width:100%; font-size:14px; padding:10px;">تسجيل الدخول بالكود</button>
+                        </div>
+                    </div>
+                </div>`;
+                document.body.insertAdjacentHTML('beforeend', overlayHTML);
 
-                if (doc.exists) {
-                    const data = doc.data();
-                    const selectedDate = document.getElementById('dateInput').value;
-                    const dateKey = 'acc_' + selectedDate;
+                // أحداث الأزرار
+                document.getElementById('generate-serial-btn').addEventListener('click', () => {
+                    const name = document.getElementById('new-user-name').value;
+                    const phone = document.getElementById('new-user-phone').value;
 
-                    console.log("📥 Server Update Received (Confirmed)", data);
+                    // توليد سيريال مميز مثل ACC-XYZ987
+                    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+                    let randomPart = '';
+                    for (let i = 0; i < 6; i++) randomPart += chars.charAt(Math.floor(Math.random() * chars.length));
+                    const newSerial = 'ACC-' + randomPart;
 
-                    // A. تحديث السجلات (Records) - منطق الحماية الذكية 🛡️
-                    if (data.records && data.date === selectedDate) {
-                        const localRecordsStr = JSON.stringify(records); // السجلات الحالية في الذاكرة
-                        const cloudRecords = data.records;
-                        const cloudRecordsStr = JSON.stringify(cloudRecords);
+                    if (name) localStorage.setItem('acc_user_name', name);
+                    if (phone) localStorage.setItem('acc_user_phone', phone);
 
-                        const localCount = records.length;
-                        const cloudCount = cloudRecords.length;
+                    // 1) حفظ السيريال محلياً كمسجل للرجوع له (أوفلاين)
+                    const offlineSerials = JSON.parse(localStorage.getItem('acc_registered_serials') || '[]');
+                    if (!offlineSerials.includes(newSerial)) {
+                        offlineSerials.push(newSerial);
+                        localStorage.setItem('acc_registered_serials', JSON.stringify(offlineSerials));
+                    }
 
-                        // 1. قاعدة الحماية من المسح (Anti-Wipe)
-                        // إذا كان السيرفر يرسل بيانات فارغة أو أقل من الموجود محلياً بفارق كبير، نتجاهله
-                        if (cloudCount === 0 && localCount > 0) {
-                            console.warn("⚠️ تحذير: السيرفر يحاول مسح البيانات! تم رفض التحديث، وسأقوم برفع النسخة المحلية بدلاً منه.");
-                            if (window.saveToCloud) window.saveToCloud(); // تصحيح السيرفر
-                            return;
+                    // 2) إنشاء السيريال في قاعدة البيانات السحابية (أونلاين)
+                    if (typeof db !== 'undefined' && typeof firebaseConfig !== 'undefined' && firebaseConfig.apiKey !== "YOUR_API_KEY_HIDDEN" && navigator.onLine) {
+                        db.collection("users").doc(newSerial).set({
+                            registered: true,
+                            createdAt: new Date().toISOString()
+                        }, { merge: true }).catch(e => console.error("Cloud registration init error:", e));
+                    }
+
+                    alert('🎉 تم إنشاء حسابك بنجاح!\n\nالكود السري الخاص بك هو:\n\n' + newSerial + '\n\n⚠️ يرجى تصوير الشاشة أو حفظ هذا الكود لأنه الطريقة الوحيدة لاسترجاع بياناتك.');
+
+                    loginWithSerial(newSerial);
+                });
+
+                document.getElementById('login-serial-btn').addEventListener('click', () => {
+                    let serial = document.getElementById('existing-serial').value.trim().toUpperCase();
+                    if (!serial) {
+                        alert('يرجى إدخال كود السريال أولاً.');
+                        return;
+                    }
+                    if (!serial.startsWith('ACC-')) {
+                        serial = 'ACC-' + serial; // إضافة البادئة لو نسيها المستخدم
+                    }
+                    if (serial.length !== 10) {
+                        alert('❌ النظام لا يدخل إلا برقم السريال الخاص بك كاملاً وبشكل دقيق. يُرجى مراجعته والمحاولة مرة أخرى.');
+                        return;
+                    }
+                    // Validate that the characters after ACC- are ONLY uppercase letters and numbers
+                    const serialPattern = /^ACC-[A-Z0-9]{6}$/;
+                    if (!serialPattern.test(serial)) {
+                        alert('❌ النظام لا يدخل إلا برقم السريال الخاص بك كاملاً وبشكل دقيق. يُرجى مراجعته والمحاولة مرة أخرى.');
+                        return;
+                    }
+
+                    const btn = document.getElementById('login-serial-btn');
+                    const origHtml = btn.innerHTML;
+
+                    function proceedOffline() {
+                        const offlineSerials = JSON.parse(localStorage.getItem('acc_registered_serials') || '[]');
+                        if (offlineSerials.includes(serial)) {
+                            loginWithSerial(serial);
+                        } else {
+                            alert("❌ الكود غير صحيح أو لم يسبق إنشاؤه على هذا الجهاز! لإنشاء حساب جديد، انقر على 'إنشاء كود سريالي'.");
                         }
+                    }
 
-                        // 2. إذا كان السيرفر لديه بيانات أقل (قد يكون خطأ مزامنة)، نعتمد الأكبر (الأكثر بيانات)
-                        if (cloudCount < localCount) {
-                            console.warn(`⚠️ تجاهل تحديث السيرفر: المحلي (${localCount}) أكثر من السيرفر (${cloudCount}).`);
-                            // يمكن إضافة منطق دمج هنا مستقبلاً، لكن حالياً الأمان في العدد الأكبر
-                            // سنقوم برفع المحلي لتحديث السيرفر
-                            if (window.saveToCloud) window.saveToCloud();
-                            return;
-                        }
+                    // لو كان التطبيق مربوطاً أونلاين بمفتاح صحيح
+                    if (typeof db !== 'undefined' && typeof firebaseConfig !== 'undefined' && firebaseConfig.apiKey !== "YOUR_API_KEY_HIDDEN" && navigator.onLine) {
+                        btn.innerHTML = 'جاري التحقق... ⏳';
+                        btn.disabled = true;
 
-                        // 3. التحديث الطبيعي (فقط إذا كان هناك اختلاف والسيرفر موثوق)
-                        if (localRecordsStr !== cloudRecordsStr) {
-                            console.log("🔄 استقبال تحديث آمن من السيرفر...");
+                        db.collection("users").doc(serial).get().then(doc => {
+                            btn.innerHTML = origHtml;
+                            btn.disabled = false;
 
-                            // 🛑 Backup BEFORE Overwrite
-                            localStorage.setItem('acc_backup_' + dateKey, localRecordsStr);
-
-                            records = cloudRecords;
-
-                            // Save records locally
-                            let storageData = {};
-                            try {
-                                storageData = JSON.parse(localStorage.getItem(dateKey) || '{}');
-                            } catch (e) { }
-
-                            if (Array.isArray(storageData)) {
-                                storageData = { records: records, eggBalance: '' };
+                            // التحقق الصارم من وجود السيريال فعلياً في السيرفر
+                            if (doc.exists) {
+                                loginWithSerial(serial);
                             } else {
-                                storageData.records = records;
+                                alert("❌ خطأ قاطع: هذا الكود غير موجود أو لم يتم إنشاؤه مسبقاً! يرجى التأكد من الرقم أو الضغط على (إنشاء كود سريالي) لعمل حساب جديد.");
                             }
-                            localStorage.setItem(dateKey, JSON.stringify(storageData));
-
-                            // Update UI
-                            if (typeof render === 'function') render();
-                            if (typeof updateSummary === 'function') updateSummary();
-                            showToast('📥 تم تحديث البيانات من السيرفر', 'info');
-                        }
+                        }).catch(e => {
+                            // فشل استخراج البيانات (قد يكون النت ضعيفاً أو حساباً مقفلاً)
+                            btn.innerHTML = origHtml;
+                            btn.disabled = false;
+                            console.warn("Cloud Check Error:", e);
+                            proceedOffline();
+                        });
+                    } else {
+                        // وضع الأوفلاين (المحلي بالكامل بدون API Key)
+                        proceedOffline();
                     }
+                });
 
-                    // B. تحديث رصيد البيض (Egg Stock)
-                    // نقوم بالتحديث فقط إذا كان التاريخ في السحابة مطابق لتاريخ العرض الحالي
-                    if (data.date === selectedDate && data.eggStock) {
-                        const stockKey = `acc_egg_stock_${selectedDate}`;
-                        const currentStockStr = localStorage.getItem(stockKey);
-                        const newStockStr = JSON.stringify(data.eggStock);
-
-                        if (currentStockStr !== newStockStr) {
-                            localStorage.setItem(stockKey, newStockStr);
-                            if (typeof updateEggBalanceDisplay === 'function') updateEggBalanceDisplay();
+                // إضافة زر تسجيل خروج للأعلى (بجانب العنوان)
+                const titleHeaderContainer = document.querySelector('.title-container');
+                if (titleHeaderContainer) {
+                    titleHeaderContainer.insertAdjacentHTML('afterend', `<button id="header-logout-btn" class="btn ghost" style="display:none; margin-right:10px; font-size:12px; padding:6px 12px; color:var(--danger); border-color:var(--danger);">تسجيل خروج</button>`);
+                    document.getElementById('header-logout-btn').addEventListener('click', () => {
+                        if (confirm('هل أنت متأكد من تسجيل الخروج؟ تاكد أنك تحفظ الكود السري الخاص بك للعودة مجدداً.')) {
+                            localStorage.removeItem('app_auth_serial');
+                            location.reload();
                         }
-                    }
-
-                    // C. تحديث الإعدادات وبيانات المستخدم (Settings)
-                    if (data.settings) {
-                        const s = data.settings;
-                        if (s.userName) localStorage.setItem('acc_user_name', s.userName);
-                        if (s.userPhone) localStorage.setItem('acc_user_phone', s.userPhone);
-                        if (s.userNotes) localStorage.setItem('acc_user_notes', s.userNotes);
-                        if (s.eggLabel) {
-                            localStorage.setItem('acc_egg_label', s.eggLabel);
-                            const labelEl = document.getElementById('eggBalanceLabel');
-                            if (labelEl) labelEl.textContent = s.eggLabel;
-                        }
-                        if (s.customCategories) {
-                            localStorage.setItem('acc_custom_categories', JSON.stringify(s.customCategories));
-                            // Update dropdown if needed (reload logic might be needed or just let next render handle it)
-                            if (typeof updateCategorySelect === 'function') updateCategorySelect();
-                        }
-                    }
-
-                    // تحديث مؤشر الحالة
-                    const statusText = document.getElementById('cloudStatusText');
-                    if (statusText) {
-                        statusText.innerHTML = 'متصل (بيانات جديدة) 📥';
-                        statusText.style.color = 'var(--green)';
-                        setTimeout(() => statusText.innerHTML = 'متصل ✅', 2000);
-                    }
+                    });
                 }
-            }, (error) => {
-                console.error("Sync Error:", error);
-                const statusText = document.getElementById('cloudStatusText');
-                if (statusText) { statusText.innerHTML = 'خروج ⚠️'; statusText.style.color = 'var(--danger)'; }
-            });
+            }
+
+            let globalUserId = null;
+            let unsubscribeSync = null;
+
+            function loginWithSerial(serialString) {
+                localStorage.setItem('app_auth_serial', serialString);
+                globalUserId = serialString;
+
+                const authOverlay = document.getElementById('auth-overlay');
+                const appContainer = document.getElementById('app');
+                const logoutBtn = document.getElementById('header-logout-btn');
+
+                if (authOverlay) authOverlay.style.display = 'none';
+                if (appContainer) appContainer.style.display = 'block';
+                if (logoutBtn) logoutBtn.style.display = 'inline-flex';
+
+                console.log("👤 User Authenticated with Serial:", globalUserId);
+
+                // نشغل المزامنة
+                startRealtimeSync();
+            }
+
+            // الاستماع لحالة تسجيل الدخول محلياً عند فتح التطبيق
+            const savedSerial = localStorage.getItem('app_auth_serial');
+            if (savedSerial) {
+                // المستخدم مسجل دخول من قبل
+                loginWithSerial(savedSerial);
+            } else {
+                // مستخدم جديد أو مسجل خروج
+                document.getElementById('auth-overlay').style.display = 'flex';
+                document.getElementById('app').style.display = 'none';
+                globalUserId = null;
+            }
+
+            // نستمع للوثيقة الخاصة بهذا المستخدم فقط
+            function startRealtimeSync() {
+                if (!globalUserId || !db) return;
+                if (unsubscribeSync) unsubscribeSync();
+
+                unsubscribeSync = db.collection("users").doc(globalUserId).collection("accounting").doc("dailyData").onSnapshot({ includeMetadataChanges: true }, (doc) => {
+
+                    // --- درع حماية البيانات المحلية ---
+                    // إذا كان التحديث القادم من السيرفر "غير مؤكد" (HasPendingWrites)
+                    // فهذا يعني أنه مجرد صدى لتعديلاتنا المحلية التي لم ترفع بعد.
+                    // نتجاهل هذا التحديث لنمنع إعادة رسم الواجهة ببيانات قديمة أو ناقصة.
+                    if (doc.metadata.hasPendingWrites) {
+                        console.log("⏳ Local mutation pending... skipping snapshot Update to avoid flicker.");
+                        return;
+                    }
+
+                    if (doc.exists) {
+                        const data = doc.data();
+                        const selectedDate = document.getElementById('dateInput').value;
+                        const dateKey = 'acc_' + selectedDate;
+
+                        console.log("📥 Server Update Received (Confirmed)", data);
+
+                        // A. تحديث السجلات (Records) - منطق الحماية الذكية 🛡️
+                        if (data.records && data.date === selectedDate) {
+                            const localRecordsStr = JSON.stringify(records); // السجلات الحالية في الذاكرة
+                            const cloudRecords = data.records;
+                            const cloudRecordsStr = JSON.stringify(cloudRecords);
+
+                            const localCount = records.length;
+                            const cloudCount = cloudRecords.length;
+
+                            // 1. قاعدة الحماية من المسح (Anti-Wipe)
+                            // إذا كان السيرفر يرسل بيانات فارغة أو أقل من الموجود محلياً بفارق كبير، نتجاهله
+                            if (cloudCount === 0 && localCount > 0) {
+                                console.warn("⚠️ تحذير: السيرفر يحاول مسح البيانات! تم رفض التحديث، وسأقوم برفع النسخة المحلية بدلاً منه.");
+                                if (window.saveToCloud) window.saveToCloud(); // تصحيح السيرفر
+                                return;
+                            }
+
+                            // 2. إذا كان السيرفر لديه بيانات أقل (قد يكون خطأ مزامنة)، نعتمد الأكبر (الأكثر بيانات)
+                            if (cloudCount < localCount) {
+                                console.warn(`⚠️ تجاهل تحديث السيرفر: المحلي (${localCount}) أكثر من السيرفر (${cloudCount}).`);
+                                // يمكن إضافة منطق دمج هنا مستقبلاً، لكن حالياً الأمان في العدد الأكبر
+                                // سنقوم برفع المحلي لتحديث السيرفر
+                                if (window.saveToCloud) window.saveToCloud();
+                                return;
+                            }
+
+                            // 3. التحديث الطبيعي (فقط إذا كان هناك اختلاف والسيرفر موثوق)
+                            if (localRecordsStr !== cloudRecordsStr) {
+                                console.log("🔄 استقبال تحديث آمن من السيرفر...");
+
+                                // 🛑 Backup BEFORE Overwrite
+                                localStorage.setItem('acc_backup_' + dateKey, localRecordsStr);
+
+                                records = cloudRecords;
+
+                                // Save records locally
+                                let storageData = {};
+                                try {
+                                    storageData = JSON.parse(localStorage.getItem(dateKey) || '{}');
+                                } catch (e) { }
+
+                                if (Array.isArray(storageData)) {
+                                    storageData = { records: records, eggBalance: '' };
+                                } else {
+                                    storageData.records = records;
+                                }
+                                localStorage.setItem(dateKey, JSON.stringify(storageData));
+
+                                // Update UI
+                                if (typeof render === 'function') render();
+                                if (typeof updateSummary === 'function') updateSummary();
+                                showToast('📥 تم تحديث البيانات من السيرفر', 'info');
+                            }
+                        }
+
+                        // B. تحديث رصيد البيض (Egg Stock)
+                        // نقوم بالتحديث فقط إذا كان التاريخ في السحابة مطابق لتاريخ العرض الحالي
+                        if (data.date === selectedDate && data.eggStock) {
+                            const stockKey = `acc_egg_stock_${selectedDate}`;
+                            const currentStockStr = localStorage.getItem(stockKey);
+                            const newStockStr = JSON.stringify(data.eggStock);
+
+                            if (currentStockStr !== newStockStr) {
+                                localStorage.setItem(stockKey, newStockStr);
+                                if (typeof updateEggBalanceDisplay === 'function') updateEggBalanceDisplay();
+                            }
+                        }
+
+                        // C. تحديث الإعدادات وبيانات المستخدم (Settings)
+                        if (data.settings) {
+                            const s = data.settings;
+                            if (s.userName) localStorage.setItem('acc_user_name', s.userName);
+                            if (s.userPhone) localStorage.setItem('acc_user_phone', s.userPhone);
+                            if (s.userNotes) localStorage.setItem('acc_user_notes', s.userNotes);
+                            if (s.eggLabel) {
+                                localStorage.setItem('acc_egg_label', s.eggLabel);
+                                const labelEl = document.getElementById('eggBalanceLabel');
+                                if (labelEl) labelEl.textContent = s.eggLabel;
+                            }
+                            if (s.customCategories) {
+                                localStorage.setItem('acc_custom_categories', JSON.stringify(s.customCategories));
+                                // Update dropdown if needed (reload logic might be needed or just let next render handle it)
+                                if (typeof updateCategorySelect === 'function') updateCategorySelect();
+                            }
+                        }
+
+                        // تحديث مؤشر الحالة
+                        const statusText = document.getElementById('cloudStatusText');
+                        if (statusText) {
+                            statusText.innerHTML = 'متصل (بيانات جديدة) 📥';
+                            statusText.style.color = 'var(--green)';
+                            setTimeout(() => statusText.innerHTML = 'متصل ✅', 2000);
+                        }
+                    }
+                }, (error) => {
+                    console.error("Sync Error:", error);
+                    const statusText = document.getElementById('cloudStatusText');
+                    if (statusText) { statusText.innerHTML = 'خروج ⚠️'; statusText.style.color = 'var(--danger)'; }
+                });
+            } // إغلاق دالة startRealtimeSync()
 
             // 4. دالة إرسال البيانات للسحابة (الشاملة)
             window.saveToCloud = function () {
@@ -12026,7 +12197,12 @@ ${report.currentData.operations.map(op => `• ${op.category}: فوق ${formatNu
 
                 // استخدام merge: true لمنع مسح الحقول الأخرى
                 // ملاحظة: مع merge:true، إذا أردنا استبدال المصفوفات (records) بالكامل، فالأمر يعمل بشكل طبيعي في Firestore حيث تستبدل المصفوفة
-                db.collection("accounting").doc("dailyData").set(payload, { merge: true })
+                if (!globalUserId) {
+                    console.log("Local Mode: no global user id. Skipped saving to cloud.");
+                    return;
+                }
+
+                db.collection("users").doc(globalUserId).collection("accounting").doc("dailyData").set(payload, { merge: true })
                     .then(() => {
                         console.log("☁️ All data sent to cloud (Merged)");
                         const statusText = document.getElementById('cloudStatusText');

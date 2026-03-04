@@ -12,6 +12,9 @@ const STATIC_FILES = [
     './',
     './index.html',
     './manifest.json',
+    './database-api.js',
+    './icons/icon-192x192.png',
+    './icons/icon-512x512.png',
     'https://fonts.googleapis.com/css2?family=El+Messiri:wght@400;600;700&display=swap',
 ];
 
